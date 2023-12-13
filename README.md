@@ -3,6 +3,7 @@
 
 ## Team: The Merry Microbes - Alice, Krupa, Roc, and Marcellus
 ### Event: Gradient0 - Life Sciences Hackathon (December 2023)
+https://merrymicrobes.wordpress.com/
 
 ## Project Overview
 
