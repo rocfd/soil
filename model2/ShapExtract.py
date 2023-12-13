@@ -74,7 +74,9 @@ def shap_explain_xgb_pred(model, data, train_or_test, model_type, fold_id, test_
     out = pd.DataFrame(index=list(data.drop(columns=["BARCODE_ID"]).columns))
     for i in range(len(shap_vals)):
         tmp = pd.DataFrame(np.mean(np.abs(pd.DataFrame(shap_vals[i]))), columns=[f"class_{i}"])
-        out = pd.concat([out, tmp], axis=1, ignore_index=True)
+        tmp["feature"] = data.drop(columns=["BARCODE_ID"]).columns
+        tmp.set_index("feature", inplace=True)
+        out = pd.concat([out, tmp], axis=1, ignore_index=False)
 
     out["model"] = model_type
     out["dataset"] = train_or_test
@@ -94,7 +96,9 @@ def shap_explain_rf_pred(model, data, train_or_test, model_type, fold_id, test_d
     out = pd.DataFrame(index=list(data.drop(columns=["BARCODE_ID"]).columns))
     for i in range(len(shap_vals)):
         tmp = pd.DataFrame(np.mean(np.abs(pd.DataFrame(shap_vals[i]))), columns=[f"class_{i}"])
-        out = pd.concat([out, tmp], axis=1, ignore_index=True)
+        tmp["feature"] = data.drop(columns=["BARCODE_ID"]).columns
+        tmp.set_index("feature", inplace=True)
+        out = pd.concat([out, tmp], axis=1, ignore_index=False)
 
     out["model"] = model_type
     out["dataset"] = train_or_test
@@ -114,7 +118,9 @@ def shap_explain_svm_pred(model, data, train_or_test, model_type, fold_id, test_
     out = pd.DataFrame(index=list(data.drop(columns=["BARCODE_ID"]).columns))
     for i in range(len(shap_values)):
         tmp = pd.DataFrame(np.mean(np.abs(pd.DataFrame(shap_values[i]))), columns=[f"class_{i}"])
-        out = pd.concat([out, tmp], axis=1, ignore_index=True)
+        tmp["feature"] = data.drop(columns=["BARCODE_ID"]).columns
+        tmp.set_index("feature", inplace=True)
+        out = pd.concat([out, tmp], axis=1, ignore_index=False)
 
     out["model"] = model_type
     out["dataset"] = train_or_test
@@ -339,10 +345,8 @@ for _ in [0]:  # name, config in models.items():
         else:  #"svm"
             curr_shap_tr = shap_explain_svm_pred(model=model, data=X_train, model_type=name,
                                                  train_or_test="CV train", fold_id=fold_id)
-            del model
-
         # Concatenate files
-        train_shap_df = pd.concat([train_shap_df, curr_shap_tr], axis=0, ignore_index=True)
+        train_shap_df = pd.concat([train_shap_df, curr_shap_tr], axis=0, ignore_index=False)
 
         fold_id += 1
 
