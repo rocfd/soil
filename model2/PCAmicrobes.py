@@ -72,6 +72,7 @@ def plot_elbow(df, title_str):
     plt.xlabel("PC")
     plt.ylabel("% variance explained")
     plt.title(f"{title_str}")
+    plt.show()
 
 
 plot_elbow(df=bac_var_exp, title_str="Bacterial diversity indices")  # 75 PCs
