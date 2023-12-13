@@ -1,7 +1,7 @@
 # Microbial and Soil Diversity Study for Predicting Land Use
 **LUCAS European Project**
 
-## Team: Merrier Microbes - Alice, Krupa, Roc, and Marcellus
+## Team: The Merry Microbes - Alice, Krupa, Roc, and Marcellus
 ### Event: Gradient0 - Life Sciences Hackathon (December 2023)
 
 ## Project Overview
