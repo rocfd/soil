@@ -1,3 +1,30 @@
+library(tidyverse)
+library(rgdal)
+library(sf)
+
+#load data
+shapefile <- st_read("/Users/martina7/Dropbox (The Francis Crick)/AI4LifeScienceHackathon/Data/provided_soil_data_LUCAS-SOIL-2018-data-report-readme-v2/LUCAS-SOIL-2018-v2/LUCAS-SOIL-2018 .shp")
+
+shapefile_train<- shapefile %>% filter(POINTID %in% train_meta_data$POINTID)
+train_meta_data<- read.delim("/Users/martina7/Dropbox (The Francis Crick)/AI4LifeScienceHackathon/analysis/meta_data_with_diversity.csv", sep = ",", row.names = 1)
+
+train_meta_data <- train_meta_data[match(shapefile_train$POINTID, train_meta_data$POINTID), ]
+shapefile_train$Elevation<- train_meta_data$Elevation
+shapefile_train$Electrical_conductivity<- train_meta_data$Electrical_conductivity
+shapefile_train$P<- train_meta_data$P
+shapefile_train$N<- train_meta_data$N
+shapefile_train$clean_LU<- train_meta_data$clean_LU
+shapefile_train$bacterial_diversity<- train_meta_data$bacterial_diversity
+shapefile_train$fungi_diversity<- train_meta_data$fungi_diversity
+shapefile_train$euk_diversity<- train_meta_data$euk_diversity
+shapefile_train$pH<- train_meta_data$pH
+shapefile_train$Organic_carbon<- train_meta_data$Organic_carbon
+plot(shapefile_train)
+
+geom_regions<- st_read("/Users/martina7/Dropbox (The Francis Crick)/AI4LifeScienceHackathon/Data/regional_info_matched_to_nature_paper_eea_v_3035_1_mio_biogeo-regions_p_2016_v01_r00/BiogeoRegions2016.shp")
+
+
+#make plots
 plot1<- ggplot() + 
   geom_sf(data =geom_regions, aes( colour = short_name)) +
   geom_sf(data = shapefile_train,aes( colour = clean_LU, shape = clean_LU))  + 
