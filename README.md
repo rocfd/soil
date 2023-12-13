@@ -1,5 +1,10 @@
-# A study on microbial and soil diversity to predict Land Use LUCAS European Project
+# A study on microbial and soil diversity to predict Land Use 
+# LUCAS European Project
+
+
 ## Merrier Microbes - Alice, Krupa, Roc and Marcellus
+## Gradient0 - Life Sciences Hackaton
+### December 2023
 
 ### Project Overview
 
