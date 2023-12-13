@@ -1,0 +1,45 @@
+#!/bin/bash
+#SBATCH -o ./out/Import.fq.%J.out
+#SBATCH -t 5:00:00
+#SBATCH --mem=32G
+
+
+###import data from fq into qiime format###
+
+
+##1. make manifest (=sample sheet)##
+#for raw data
+#find /camp/project/tracerX/working/MICROBIOME/LUCAS_Soil_microbiome/SOURCES/16S_bacterial -name "*.1.fq.gz" > all_raw_R1
+#sed 's/.1.fq/.2.fq/g' all_raw_R1 > all_raw_R2
+#paste all_raw_R1 all_raw_R2 > all_raw_R1_R2
+
+#while read a b
+#do
+#echo $(basename $a | sed 's-.1.fq.gz--g')
+#done < all_raw_R1_R2 > sample_names
+
+
+#paste sample_names all_raw_R1_R2 > raw_fastqs_read_manifest.tsv.tmp
+
+#echo "sample-id forward-absolute-filepath reverse-absolute-filepath" > header
+#sed -i 's/ /\t/g' header
+#cat header raw_fastqs_read_manifest.tsv.tmp > raw_fastqs_read_manifest.tsv
+
+
+
+##2. run import ##
+#source ~/.bashrc
+#conda activate /nemo/project/proj-tracerX/working/PIPELINES/QIIME2/rescript
+
+ml QIIME2/2022.11
+
+odir=/camp/project/tracerX/working/MICROBIOME/LUCAS_Soil_microbiome/OUTPUT/16S_bacterial/imported_reads
+
+#for raw data
+qiime tools import \
+--type 'SampleData[PairedEndSequencesWithQuality]'  \
+--input-path raw_fastqs_read_manifest.tsv \
+--output-path $odir/Bacterial_Reads.qza \
+--input-format PairedEndFastqManifestPhred33V2
+
+

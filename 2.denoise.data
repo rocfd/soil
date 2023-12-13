@@ -1,0 +1,67 @@
+#!/bin/bash
+#SBATCH -o ./out/Trim.Denoise.fq.%J.out
+#SBATCH -t 3-00:00:00
+#SBATCH --mem=64G
+
+###script to denoise data with dada2 (2nd step following import)
+
+#source ~/.bashrc
+#conda activate /nemo/project/proj-tracerX/working/PIPELINES/QIIME2/rescript
+ml QIIME2/2022.11
+
+idir=/camp/project/tracerX/working/MICROBIOME/LUCAS_Soil_microbiome/OUTPUT/16S_bacterial/imported_reads
+odir=/camp/project/tracerX/working/MICROBIOME/LUCAS_Soil_microbiome/OUTPUT/16S_bacterial/feature_tables
+
+#1. sumamrise data before and after trimming adapters to check what's happened
+#qiime demux summarize \
+# --i-data $idir/Bacterial_Reads.qza \
+# --o-visualization $idir/Bacterial_Reads.qzv
+
+#qiime cutadapt trim-paired \
+#  --i-demultiplexed-sequences $idir/Bacterial_Reads.qza \
+#  --p-adapter-f GTGYCAGCMGCCGCGGTAA \
+#  --p-front-f AAACTYAAAKRAATTGRCGGCC \
+#  --p-adapter-r GGCCGYCAATTYMTTTRAGTTT \
+#  --p-front-r TTACCGCGGCKGCTGRCAC \
+#  --p-match-read-wildcards \
+#  --p-match-adapter-wildcards \
+#  --o-trimmed-sequences $idir/Bacterial_Reads_trimmed.qza
+
+#qiime demux summarize \
+# --i-data $idir/Bacterial_Reads_trimmed.qza \
+# --o-visualization $idir/Bacterial_Reads_trimmed.qzv
+
+#2. use dada to denoise 
+#for raw data
+qiime dada2 denoise-paired \
+    --i-demultiplexed-seqs $idir/Bacterial_Reads_trimmed.qza \
+    --p-trunc-len-f 220 \
+    --p-trunc-len-r 220 \
+    --p-trim-left-f 0 \
+    --p-trim-left-r 0 \
+    --p-n-threads 4 \
+    --o-representative-sequences $odir/Bacterial_Feature_Sequences.qza \
+    --o-table $odir/Bacterial_Feature_Table.qza \
+    --o-denoising-stats $odir/Bacterial_Feature_Sequenced_stats.qza \
+    --verbose
+
+
+
+#3. make summary of denoised data (=read counts assigned to OTUs)
+#for raw data
+qiime feature-table summarize \
+  --i-table $odir/Bacterial_Feature_Table.qza \
+  --o-visualization $odir/Bacterial_Summary_Table.qzv
+
+qiime feature-table tabulate-seqs \
+  --i-data $odir/Bacterial_Feature_Sequences.qza \
+  --o-visualization $odir/Bacterial_Summary_Sequences.qzv
+
+
+
+#4. export summaries for visualisation 
+##for raw data
+qiime tools export \
+ --input-path $odir/Bacterial_Feature_Table.qza \
+ --output-path $odir/Bacterial_Feature_Table
+
