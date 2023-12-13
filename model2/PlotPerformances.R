@@ -1,3 +1,4 @@
+library(ggplot2)
 library(ggpubr)
 library(dplyr)
 
@@ -6,9 +7,8 @@ library(dplyr)
 path_stem = "C:/Users/Marce/Documents/MBPhD/OtherStuff/AI4LS/models/"
 
 
-models = c("elastic_net", "svm", "random_forest", "xgboost")
+models = c("elastic_net", "random_forest", "xgboost")
 
-i=1
 roc = data.frame()
 for (i in 1:length(models)) {
   
@@ -19,8 +19,7 @@ for (i in 1:length(models)) {
   head(curr_roc)
   
   curr_roc$model = curr_model
-  roc = rbind(roc, curr_roc)
-  
+  roc = rbind(roc, curr_roc) 
 }
 
 
@@ -34,6 +33,7 @@ ggplot(data = roc_melt, mapping = aes(x = model, y = value, color = model)) +
   geom_boxplot() +
   coord_cartesian(ylim = c(0.5, 1)) + 
   ggtitle("Model performances") + ylab("ROC-AUC") +
+  ggpubr::stat_compare_means(method = "kruskal.test") +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1), text = element_text(size = 16),
         plot.title = element_text(face = "bold", hjust = 0.5), legend.position = "none") +
