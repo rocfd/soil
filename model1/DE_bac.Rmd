@@ -1,0 +1,151 @@
+---
+title: "DE"
+author: "Alice Martin"
+date: "08/12/2023"
+output: html_document
+---
+
+```{r setup, include=TRUE}
+if(Sys.info()["nodename"]=="C02G7AFCML7H"){
+  knitr::opts_knit$set(root.dir = "/Volumes/TracerX/")
+}else{
+  knitr::opts_knit$set(root.dir = "/camp/project/tracerX/")
+}
+library(tidyverse)
+library(DESeq2)
+library(EnhancedVolcano)
+library(magrittr)
+library(UpSetR)
+```
+
+```{r load train data}
+train_meta_data<- read.delim("/Users/martina7/Dropbox (The Francis Crick)/AI4LifeScienceHackathon/Final data/Meta_data_all_samps_coordinates_train_set.txt")
+rownames(train_meta_data)<- train_meta_data$BARCODE_ID
+# Bac_train_data<- read.delim("/Users/martina7/Dropbox (The Francis Crick)/AI4LifeScienceHackathon/Final data/Bacteria_tax_table_genus_final.txt")
+# Bac_train_data<- Bac_train_data %>% column_to_rownames(var = "genus") %>% select(train_meta_data$BARCODE_ID) %>% as.data.frame()
+# Bac_train_data<- Bac_train_data[-which(rowSums(Bac_train_data)==0),]
+# Bac_train_data<- Bac_train_data +1
+
+
+functional_pathways<- read.delim("working/MICROBIOME/LUCAS_Soil_microbiome/WORKING/ko_metagenome.tsv", sep = "\t", skip = 1)
+colnames(functional_pathways)<-  gsub("(^X\\d+)_.+","\\1", colnames(functional_pathways))
+functional_pathways<- functional_pathways %>% column_to_rownames(var = "X.OTU.ID")
+colnames(functional_pathways)<-  gsub("^X","Lucas", colnames(functional_pathways))
+dim(functional_pathways)
+functional_pathways_t<- functional_pathways %>% t() %>% as.data.frame()
+functional_pathways_t$samp<- gsub("\\.\\d$","",rownames(functional_pathways_t))
+functional_pathways_t_t<- functional_pathways_t %>% group_by(samp) %>% summarise_all(sum)
+
+
+functional_pathways_train<- functional_pathways_t_t %>% filter(samp %in% train_meta_data$BARCODE_ID)
+functional_pathways_train<- functional_pathways_train %>% column_to_rownames(var = "samp") %>% t() %>% as.data.frame()
+functional_pathways_train<- functional_pathways_train +1
+```
+
+```{r DE}
+meta_input<- train_meta_data %>% filter(clean_LU=="U111") #"U120" "U100" "U400" "U111"
+input<- functional_pathways_train %>% select(meta_input$BARCODE_ID)
+dds <- DESeqDataSetFromMatrix(countData = input, 
+                              colData = meta_input, 
+                              design = ~  pH ) #Electrical_conductivity, Elevation, N, P 
+
+dds <- DESeq(dds)
+res_Bac_pH_U111 <- results(dds)
+res_Bac_pH_U111 <- res_Bac_pH_U111 %>% as.data.frame()
+write.table(res_Bac_pH_U111, "/Users/martina7/Dropbox (The Francis Crick)/AI4LifeScienceHackathon/analysis/Microbes_DE/Bac_DE_pH_U111_KEGG.txt", sep = "\t", quote = F, row.names = T, col.names = T)
+```
+
+```{r} 
+vol_FC <- .5
+vol_pValue <- 0.00001
+vol_pAdjValue <- 0.05
+
+keyvals.colour <- ifelse(
+  res_Bac_pH_U111$padj  <= vol_pAdjValue, 'slateblue',  'grey')
+
+keyvals.colour[is.na(keyvals.colour)] <- 'grey'
+names(keyvals.colour)[keyvals.colour == 'slateblue'] <- 'significant padj'
+names(keyvals.colour)[keyvals.colour == 'grey'] <- 'not significant'
+
+
+
+
+plot1<- EnhancedVolcano(res_Bac_pH_U111,
+                lab =  rownames(res_Bac_pH_U111) ,
+                x = 'log2FoldChange',
+                y = 'padj',
+                pCutoff = vol_pAdjValue,
+                FCcutoff = log2(vol_FC),
+                ylab = bquote(~-Log[10]~adjusted~italic(P)),
+                colCustom = keyvals.colour,
+               boxedLabels = F,
+               drawConnectors=T,
+                 xlim = c(min(res_Bac_pH_U111[['log2FoldChange']], na.rm=TRUE) - 0.001,
+                         max(res_Bac_pH_U111[['log2FoldChange']], na.rm=TRUE) + 0.001),
+                # ylim = c(0, max(-log10(res_Bac_pH_U111[['padj']]), na.rm=TRUE) + 3),
+                caption = paste0("FC cutoff: ", vol_FC, ", p-value cutoff: ", vol_pAdjValue)) + 
+   theme_classic() + 
+  guides(colour="none") + 
+  theme(
+    # panel.background = element_rect(fill='transparent'), #transparent panel bg
+    plot.background = element_rect(fill='transparent', color=NA), #transparent plot bg
+    legend.background = element_rect(fill='transparent'), #transparent legend bg
+    legend.box.background = element_rect(fill='transparent'), #transparent legend panel
+    axis.title.y = element_blank(),
+    text = element_text(size = 14, colour = "black", face = "bold"))+
+  geom_vline(xintercept = 0, linetype = "dashed", colour= "grey")
+    # axis.text = element_text(size = 16, colour = "black"),
+    # axis.text.x = element_text(angle=90,vjust = 0.5, hjust=1)
+
+
+plot1
+pdf("/Users/martina7/Dropbox (The Francis Crick)/AI4LifeScienceHackathon/analysis/Microbes_DE/Bac_DE_pH_U111_KEGG.pdf", width = 8, height = 8)
+print(plot1)
+dev.off()
+
+
+```
+
+```{r overlap}
+
+Bac_N_U111<- res_Bac_N_U111 %>% filter(pvalue<=0.05) %>% rownames_to_column(var="genus") %>% mutate(clean_LU = "U111") %>% select(genus,clean_LU)
+Bac_N_U120<- res_Bac_N_U120 %>% filter(pvalue<=0.05) %>% rownames_to_column(var="genus") %>% mutate(clean_LU = "U120") %>% select(genus,clean_LU)
+Bac_N_U400<- res_Bac_N_U400 %>% filter(pvalue<=0.05) %>% rownames_to_column(var="genus") %>% mutate(clean_LU = "U400") %>% select(genus,clean_LU)
+# Bac_N_U111<- res_Bac_N_U111 %>% filter(pval<=0.05) %>% rownames_to_column(var="genus") %>% mutate(clean_LU = "U111") %>% select(genus,clean_LU)
+Bac_N<- rbind(Bac_N_U111,Bac_N_U120,Bac_N_U400 ) #,Bac_N_U111)
+Bac_N_binary <- table(Bac_N$genus, Bac_N$clean_LU) > 0
+Bac_N_binary<- Bac_N_binary %>% replace(.==TRUE, 1) %>% replace(.==FALSE,0)
+Bac_N_binary<- Bac_N_binary %>% as.data.frame()%>% rownames_to_column(var="genus")
+plot2<-upset(Bac_N_binary , sets =c("U111","U400") , sets.bar.color = "slateblue",
+order.by = "freq", empty.intersections = "on") 
+
+plot2
+
+pdf("/Users/martina7/Dropbox (The Francis Crick)/AI4LifeScienceHackathon/analysis/Microbes_DE/Bac_DE_N_overlap.pdf", width = 8, height = 8)
+print(plot2)
+dev.off()
+
+```
+
+
+```{r overlap}
+Bac_pH_U111$Feature<- "Electrical_Conductivity"
+Bac_pH_U111$Feature<- "Elevation"
+Bac_Phosphorus_U111$Feature<- "Phosphorus"
+Bac_Nitrogen_U111$Feature<- "Nitrogen"
+
+
+Bac_U111<- rbind(Bac_pH_U111,Bac_pH_U111,Bac_Phosphorus_U111,Bac_Nitrogen_U111)
+Bac_U111_binary <- table(Bac_U111$genus, Bac_U111$Feature) > 0
+Bac_U111_binary<- Bac_U111_binary %>% replace(.==TRUE, 1) %>% replace(.==FALSE,0)
+Bac_U111_binary<- Bac_U111_binary %>% as.data.frame()%>% rownames_to_column(var="genus")
+plot2<-upset(Bac_U111_binary , sets =c("Electrical_Conductivity","Elevation","Phosphorus","Nitrogen") , sets.bar.color = "slateblue",
+order.by = "freq", empty.intersections = "on") 
+
+plot2
+
+pdf("/Users/martina7/Dropbox (The Francis Crick)/AI4LifeScienceHackathon/analysis/Microbes_DE/Bac_DE_U111_overlap.pdf", width = 8, height = 8)
+print(plot2)
+dev.off()
+
+```

@@ -1,0 +1,115 @@
+---
+title: "DE"
+author: "Alice Martin"
+date: "08/12/2023"
+output: html_document
+---
+
+```{r setup, include=TRUE}
+if(Sys.info()["nodename"]=="C02G7AFCML7H"){
+  knitr::opts_knit$set(root.dir = "/Volumes/TracerX/")
+}else{
+  knitr::opts_knit$set(root.dir = "/camp/project/tracerX/")
+}
+library(tidyverse)
+library(DESeq2)
+library(EnhancedVolcano)
+library(magrittr)
+library(UpSetR)
+```
+
+```{r load train data}
+train_meta_data<- read.delim("/Users/martina7/Dropbox (The Francis Crick)/AI4LifeScienceHackathon/Final data/Meta_data_all_samps_coordinates_train_set.txt")
+rownames(train_meta_data)<- train_meta_data$BARCODE_ID
+Euk_train_data<- read.delim("/Users/martina7/Dropbox (The Francis Crick)/AI4LifeScienceHackathon/Final data/Eukaryotes_tax_table_genus.txt")
+Euk_train_data<- Euk_train_data %>% column_to_rownames(var = "genus") %>% select(train_meta_data$BARCODE_ID) %>% as.data.frame()
+Euk_train_data<- Euk_train_data[-which(rowSums(Euk_train_data)==0),]
+Euk_train_data<- Euk_train_data +1
+```
+
+```{r DE}
+meta_input<- train_meta_data %>% filter(clean_LU=="U111") #"U120" "U100" "U400" "U111"
+input<- Euk_train_data %>% select(meta_input$BARCODE_ID)
+dds <- DESeqDataSetFromMatrix(countData = input, 
+                              colData = meta_input, 
+                              design = ~  Electrical_conductivity ) #Electrical_conductivity, Elevation, N, P 
+
+dds <- DESeq(dds)
+res_Euk_EC_U111 <- results(dds)
+res_Euk_EC_U111 <- res_Euk_EC_U111 %>% as.data.frame()
+write.table(res_Euk_EC_U111, "/Users/martina7/Dropbox (The Francis Crick)/AI4LifeScienceHackathon/analysis/Microbes_DE/Euk_DE_EC_U111.txt", sep = "\t", quote = F, row.names = T, col.names = T)
+```
+
+```{r} 
+vol_FC <- .5
+vol_pValue <- 0.00001
+vol_pAdjValue <- 0.05
+
+keyvals.colour <- ifelse(
+  res_Euk_EC_U111$padj  <= vol_pAdjValue, 'slateblue',  'grey')
+
+keyvals.colour[is.na(keyvals.colour)] <- 'grey'
+names(keyvals.colour)[keyvals.colour == 'slateblue'] <- 'significant padj'
+names(keyvals.colour)[keyvals.colour == 'grey'] <- 'not significant'
+
+
+
+
+plot1<- EnhancedVolcano(res_Euk_EC_U111,
+                lab =  rownames(res_Euk_EC_U111) ,
+                x = 'log2FoldChange',
+                y = 'padj',
+                pCutoff = vol_pAdjValue,
+                FCcutoff = log2(vol_FC),
+                ylab = bquote(~-Log[10]~adjusted~italic(P)),
+                colCustom = keyvals.colour,
+               boxedLabels = F,
+               drawConnectors=T,
+                 xlim = c(min(res_Euk_EC_U111[['log2FoldChange']], na.rm=TRUE) - 0.001,
+                         max(res_Euk_EC_U111[['log2FoldChange']], na.rm=TRUE) + 0.001),
+                # ylim = c(0, max(-log10(res_Euk_EC_U111[['padj']]), na.rm=TRUE) + 3),
+                caption = paste0("FC cutoff: ", vol_FC, ", p-value cutoff: ", vol_pAdjValue)) + 
+   theme_classic() + 
+  guides(colour="none") + 
+  theme(
+    # panel.background = element_rect(fill='transparent'), #transparent panel bg
+    plot.background = element_rect(fill='transparent', color=NA), #transparent plot bg
+    legend.background = element_rect(fill='transparent'), #transparent legend bg
+    legend.box.background = element_rect(fill='transparent'), #transparent legend panel
+    axis.title.y = element_blank(),
+    text = element_text(size = 14, colour = "black", face = "bold"))+
+  geom_vline(xintercept = 0, linetype = "dashed", colour= "grey")
+    # axis.text = element_text(size = 16, colour = "black"),
+    # axis.text.x = element_text(angle=90,vjust = 0.5, hjust=1)
+
+
+plot1
+pdf("/Users/martina7/Dropbox (The Francis Crick)/AI4LifeScienceHackathon/analysis/Microbes_DE/Euk_DE_EC_U111.pdf", width = 8, height = 8)
+print(plot1)
+dev.off()
+
+
+```
+
+```{r overlap}
+
+Euk_Nitrogen_U111<- res_Euk_Nitrogen_U111 %>% filter(padj<=0.05) %>% rownames_to_column(var="genus") %>% mutate(clean_LU = "U111") %>% select(genus,clean_LU)
+Euk_Nitrogen_U400<- res_Euk_Nitrogen_U400 %>% filter(padj<=0.05) %>% rownames_to_column(var="genus") %>% mutate(clean_LU = "U400") %>% select(genus,clean_LU)
+Euk_Nitrogen_U100<- res_Euk_Nitrogen_U100 %>% filter(padj<=0.05) %>% rownames_to_column(var="genus") %>% mutate(clean_LU = "U100") %>% select(genus,clean_LU)
+Euk_Nitrogen_U120<- res_Euk_Nitrogen_U120 %>% filter(padj<=0.05) %>% rownames_to_column(var="genus") %>% mutate(clean_LU = "U120") %>% select(genus,clean_LU)
+Euk_EC<- rbind(Euk_Nitrogen_U111,Euk_Nitrogen_U400,Euk_Nitrogen_U100,Euk_Nitrogen_U120)
+Euk_Nitrogen_binary <- table(Euk_EC$genus, Euk_EC$clean_LU) > 0
+Euk_Nitrogen_binary<- Euk_Nitrogen_binary %>% replace(.==TRUE, 1) %>% replace(.==FALSE,0)
+movies <- read.csv(system.file("extdata", "movies.csv", package = "UpSetR"), 
+    header = T, sep = ";")
+Euk_Nitrogen_binary<- Euk_Nitrogen_binary %>% as.data.frame()%>% rownames_to_column(var="genus")
+plot2<-upset(Euk_Nitrogen_binary , sets =c("U111","U400","U100","U120") , sets.bar.color = "slateblue",
+order.by = "freq", empty.intersections = "on") 
+
+plot2
+
+pdf("/Users/martina7/Dropbox (The Francis Crick)/AI4LifeScienceHackathon/analysis/Microbes_DE/Euk_DE_Nitrogen_overlap.pdf", width = 8, height = 8)
+print(plot2)
+dev.off()
+
+```
